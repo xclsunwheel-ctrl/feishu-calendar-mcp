@@ -78,6 +78,12 @@ async def list_calendars() -> str:
         return f"获取日历列表失败: {str(e)}"
 
 
+# Remove outputSchema from tools (claude.ai doesn't support it yet)
+for tool in mcp._tool_manager._tools.values():
+    if hasattr(tool, 'output_schema'):
+        tool.output_schema = None
+
+
 if __name__ == "__main__":
     import uvicorn
     from starlette.requests import Request
