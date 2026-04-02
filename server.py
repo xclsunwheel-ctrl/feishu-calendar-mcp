@@ -118,6 +118,7 @@ if __name__ == "__main__":
             headers={
                 "Cache-Control": "no-cache, no-transform",
                 "Connection": "keep-alive",
+                "X-Accel-Buffering": "no",
             },
         )
 
