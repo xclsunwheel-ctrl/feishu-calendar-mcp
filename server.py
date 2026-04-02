@@ -88,25 +88,25 @@ for tool in mcp._tool_manager._tools.values():
 
 if __name__ == "__main__":
     import asyncio
+    import logging
     import uvicorn
+    from starlette.middleware import Middleware
+    from starlette.middleware.cors import CORSMiddleware
     from starlette.requests import Request
     from starlette.responses import JSONResponse, StreamingResponse
     from starlette.routing import Route
+
+    logging.basicConfig(level=logging.INFO)
+    logger = logging.getLogger("mcp-server")
 
     async def health(request: Request):
         return JSONResponse({"status": "ok"})
 
     async def mcp_get_handler(request: Request):
-        """Handle GET /mcp requests from claude.ai for SSE streaming.
-
-        claude.ai sends GET /mcp without Accept: text/event-stream header,
-        which causes the MCP SDK to return 406. This handler intercepts GET
-        requests and returns a proper keep-alive SSE stream.
-        """
+        """Handle GET /mcp requests for SSE streaming."""
+        logger.info(f"GET /mcp - Headers: {dict(request.headers)}")
         async def event_stream():
-            # Send an initial comment to keep the connection alive
             yield ": ok\n\n"
-            # Keep the stream open for a while
             try:
                 while True:
                     await asyncio.sleep(30)
@@ -125,7 +125,17 @@ if __name__ == "__main__":
         )
 
     starlette_app = mcp.streamable_http_app()
-    # Insert GET /mcp handler BEFORE the default MCP route to intercept GET requests
+
+    # Add CORS middleware for claude.ai browser requests
+    starlette_app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
+        allow_headers=["*"],
+        expose_headers=["Mcp-Session-Id"],
+    )
+
+    # Insert GET /mcp handler BEFORE the default MCP route
     starlette_app.routes.insert(0, Route("/mcp", mcp_get_handler, methods=["GET"]))
     starlette_app.routes.append(Route("/health", health, methods=["GET"]))
 
