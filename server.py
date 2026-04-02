@@ -124,6 +124,15 @@ if __name__ == "__main__":
             },
         )
 
+    from starlette.middleware.base import BaseHTTPMiddleware
+
+    class LoggingMiddleware(BaseHTTPMiddleware):
+        async def dispatch(self, request, call_next):
+            logger.info(f">>> {request.method} {request.url.path} - Accept: {request.headers.get('accept', 'NONE')} - Origin: {request.headers.get('origin', 'NONE')} - UA: {request.headers.get('user-agent', 'NONE')[:80]}")
+            response = await call_next(request)
+            logger.info(f"<<< {response.status_code} Content-Type: {response.headers.get('content-type', 'NONE')}")
+            return response
+
     starlette_app = mcp.streamable_http_app()
 
     # Add CORS middleware for claude.ai browser requests
@@ -134,6 +143,9 @@ if __name__ == "__main__":
         allow_headers=["*"],
         expose_headers=["Mcp-Session-Id"],
     )
+
+    # Add logging middleware
+    starlette_app.add_middleware(LoggingMiddleware)
 
     # Insert GET /mcp handler BEFORE the default MCP route
     starlette_app.routes.insert(0, Route("/mcp", mcp_get_handler, methods=["GET"]))
