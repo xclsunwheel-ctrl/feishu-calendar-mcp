@@ -23,6 +23,8 @@ mcp = FastMCP(
     instructions="帮助用户在飞书中创建和管理日程。当用户说要建立日程/会议/安排时，使用 create_calendar_event 工具。",
     host="0.0.0.0",
     port=port,
+    json_response=True,
+    stateless_http=True,
 )
 
 
