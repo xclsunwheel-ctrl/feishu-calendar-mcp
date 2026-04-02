@@ -79,4 +79,15 @@ async def list_calendars() -> str:
 
 
 if __name__ == "__main__":
-    mcp.run(transport="streamable-http")
+    import uvicorn
+    from starlette.requests import Request
+    from starlette.responses import JSONResponse
+    from starlette.routing import Route
+
+    async def health(request: Request):
+        return JSONResponse({"status": "ok"})
+
+    starlette_app = mcp.streamable_http_app()
+    starlette_app.routes.append(Route("/health", health, methods=["GET"]))
+
+    uvicorn.run(starlette_app, host="0.0.0.0", port=port)
