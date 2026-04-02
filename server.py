@@ -85,15 +85,45 @@ for tool in mcp._tool_manager._tools.values():
 
 
 if __name__ == "__main__":
+    import asyncio
     import uvicorn
     from starlette.requests import Request
-    from starlette.responses import JSONResponse
+    from starlette.responses import JSONResponse, StreamingResponse
     from starlette.routing import Route
 
     async def health(request: Request):
         return JSONResponse({"status": "ok"})
 
+    async def mcp_get_handler(request: Request):
+        """Handle GET /mcp requests from claude.ai for SSE streaming.
+
+        claude.ai sends GET /mcp without Accept: text/event-stream header,
+        which causes the MCP SDK to return 406. This handler intercepts GET
+        requests and returns a proper keep-alive SSE stream.
+        """
+        async def event_stream():
+            # Send an initial comment to keep the connection alive
+            yield ": ok\n\n"
+            # Keep the stream open for a while
+            try:
+                while True:
+                    await asyncio.sleep(30)
+                    yield ": ping\n\n"
+            except asyncio.CancelledError:
+                return
+
+        return StreamingResponse(
+            event_stream(),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache, no-transform",
+                "Connection": "keep-alive",
+            },
+        )
+
     starlette_app = mcp.streamable_http_app()
+    # Insert GET /mcp handler BEFORE the default MCP route to intercept GET requests
+    starlette_app.routes.insert(0, Route("/mcp", mcp_get_handler, methods=["GET"]))
     starlette_app.routes.append(Route("/health", health, methods=["GET"]))
 
     uvicorn.run(starlette_app, host="0.0.0.0", port=port)
