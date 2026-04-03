@@ -5,9 +5,11 @@ import httpx
 class FeishuClient:
     BASE_URL = "https://open.feishu.cn/open-apis"
 
-    def __init__(self, app_id: str, app_secret: str):
+    def __init__(self, app_id: str, app_secret: str, default_calendar_id: str = "", attendee_open_id: str = ""):
         self.app_id = app_id
         self.app_secret = app_secret
+        self.default_calendar_id = default_calendar_id
+        self.attendee_open_id = attendee_open_id
         self._token: str | None = None
         self._token_expires_at: float = 0
 
@@ -46,6 +48,8 @@ class FeishuClient:
         return data.get("data", {}).get("calendar_list", [])
 
     async def get_primary_calendar_id(self) -> str:
+        if self.default_calendar_id:
+            return self.default_calendar_id
         calendars = await self.list_calendars()
         for cal in calendars:
             if cal.get("role") in ("owner", "writer"):
@@ -78,4 +82,22 @@ class FeishuClient:
         )
         if data.get("code") != 0:
             raise Exception(f"Failed to create event: {data.get('msg')}")
-        return data.get("data", {}).get("event", {})
+
+        event = data.get("data", {}).get("event", {})
+
+        # Add attendee so event shows on their personal calendar
+        if self.attendee_open_id:
+            event_id = event.get("event_id", "")
+            if event_id:
+                await self._add_attendee(calendar_id, event_id, self.attendee_open_id)
+
+        return event
+
+    async def _add_attendee(self, calendar_id: str, event_id: str, open_id: str) -> None:
+        data = await self._request(
+            "POST",
+            f"/calendar/v4/calendars/{calendar_id}/events/{event_id}/attendees?user_id_type=open_id",
+            json={"attendees": [{"type": "user", "user_id": open_id}]},
+        )
+        if data.get("code") != 0:
+            raise Exception(f"Failed to add attendee: {data.get('msg')}")

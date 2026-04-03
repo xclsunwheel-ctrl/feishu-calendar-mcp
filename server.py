@@ -10,11 +10,13 @@ load_dotenv()
 
 app_id = os.environ.get("FEISHU_APP_ID", "")
 app_secret = os.environ.get("FEISHU_APP_SECRET", "")
+default_calendar_id = os.environ.get("FEISHU_DEFAULT_CALENDAR_ID", "")
+attendee_open_id = os.environ.get("FEISHU_ATTENDEE_OPEN_ID", "")
 
 if not app_id or not app_secret:
     raise ValueError("Please set FEISHU_APP_ID and FEISHU_APP_SECRET environment variables")
 
-feishu = FeishuClient(app_id, app_secret)
+feishu = FeishuClient(app_id, app_secret, default_calendar_id=default_calendar_id, attendee_open_id=attendee_open_id)
 
 port = int(os.environ.get("PORT", 8000))
 
